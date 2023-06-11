@@ -3,8 +3,8 @@ from mouse_input import MouseInput
 
 getInput = MouseInput()
 
-game_map_size = (game_map_width, game_map_height) = (16, 16)
-game_mine_count = 40
+game_map_size = (game_map_width, game_map_height) = (9, 9)
+game_mine_count = 10
 game_params = (game_map_size, game_mine_count)
 
 display_scale = 2

@@ -13,11 +13,19 @@ class Game:
         self.setup_game()
 
     def setup_game(self):
-        self.game = Minesweeper(*self.game_settings)
+        # game
+        # self.game = Minesweeper(*self.game_settings)
+
+        self.touched = False
+        self.mines = self.game_settings[1]
+        self.flags = self.mines
+
+        # technical
         self.status = GameStatus.playing.value
         self.timer = 0
         self.last = 0, 0
 
+        # interface
         self.ui = pygame.sprite.Group()
         self.buttons = pygame.sprite.Group()
         self.main_button = pygame.sprite.GroupSingle()
@@ -63,6 +71,32 @@ class Game:
                 CellButton((BORDER_VERTICAL_SIZE[0] + x * CELL_SIZE[0],
                             2 * (BORDER_HORIZONTAL_SIZE[1] + CELL_SIZE[1]) + y * CELL_SIZE[1]), self.ui, self.buttons)
                 for x in range(self.game_size[0])])
+
+    def create_field(self, coords):
+        ban_coords = []
+        for i in (-1, 0, 1):
+            for j in (-1, 0, 1):
+                ban_coords.append((coords[0] + i, coords[1] + j))
+        samples = [(i, j) for j in range(self.game_size[1]) for i in range(self.game_size[0]) if (i, j) not in ban_coords]
+        print('\n'.join([' '.join([str(int(j.is_flagged())) for j in i]) for i in self.field]))
+        print()
+        mine_coords = sample(samples, self.mines)
+        for x, y in mine_coords:
+            self.field[y][x].change(-1)
+            for i in (-1, 0, 1):
+                for j in (-1, 0, 1):
+                    if i != 0 or j != 0:
+                        if 0 <= x + i < self.game_size[0] and 0 <= y + j < self.game_size[1]:
+                            if not self.field[y + j][x + i].is_bomb():
+                                self.field[y + j][x + i].plus()
+        self.print_field()
+
+    def check_win(self):
+        return len([1 for i in range(self.game_size[0] * self.game_size[1])
+                    if not self.field[i // self.game_size[0]][i % self.game_size[0]].is_opened()]) == self.mines
+
+    def print_field(self):
+        print('\n'.join([' '.join(map(str, i)).replace('-1', '*') for i in self.field]))
 
     def set_face(self, face):
         if face == 'ooh':
@@ -110,55 +144,55 @@ class Game:
                 if getInput.mouse_up_button == getInput.LEFT_BUTTON:
                     self.open(*self.last)
                 elif getInput.mouse_up_button == getInput.RIGHT_BUTTON:
-                    self.flag(*self.last)
+                    if self.status == GameStatus.playing.value:
+                        self.flag(*self.last)
             elif self.is_button_coords(getInput.mouse_up_pos, self.main_button.sprite):
                 if getInput.mouse_up_button == getInput.LEFT_BUTTON:
                     self.setup_game()
 
     def open(self, x: int, y: int):
-        if not self.game.field[y][x].is_flagged() and not self.game.field[y][x].is_opened():
-            if not self.game.touched:
-                self.game.create_field((x, y))
+        if not self.field[y][x].is_flagged() and not self.field[y][x].is_opened():
+            if not self.touched:
+                self.create_field((x, y))
                 self.start_timer()
-                self.game.touched = True
-            self.field[y][x].pressed(self.game.field[y][x])
-            self.game.open_cell(x, y)
-            if self.game.field[y][x] == 0:
+                self.touched = True
+            self.field[y][x].pressed()
+            if self.field[y][x].is_n(0):
                 for i in (-1, 0, 1):
                     for j in (-1, 0, 1):
                         if i != 0 or j != 0:
-                            if 0 <= x + i < self.game.size[0] and 0 <= y + j < self.game.size[1]:
+                            if 0 <= x + i < self.game_size[0] and 0 <= y + j < self.game_size[1]:
                                 self.open(x + i, y + j)
-            elif self.game.field[y][x].is_bomb():
+            elif self.field[y][x].is_bomb():
                 self.loss((x, y))
-            if self.game.checkWin():
+            if self.check_win():
                 self.win()
 
     def win(self):
         self.stop_timer()
         self.set_face('win')
         self.status = GameStatus.win.value
-        for i in range(self.game.size[0] * self.game.size[1]):
-            cell = self.game.field[i // self.game.size[0]][i % self.game.size[0]]
+        for i in range(self.game_size[0] * self.game_size[1]):
+            cell = self.field[i // self.game_size[0]][i % self.game_size[0]]
             if not cell.is_opened() and not cell.is_flagged():
-                self.flag(i % self.game.size[0], i // self.game.size[0])
+                self.flag(i % self.game_size[0], i // self.game_size[0])
 
     def loss(self, coords: tuple[int, int]):
         self.set_face('loss')
         self.status = GameStatus.loss.value
         self.stop_timer()
-        for y in range(self.game.size[1]):
-            for x in range(self.game.size[0]):
+        for y in range(self.game_size[1]):
+            for x in range(self.game_size[0]):
                 if coords != (x, y):
-                    self.field[y][x].bombed(self.game.field[y][x].n)
-                self.game.field[y][x].open()
+                    self.field[y][x].bombed()
+                self.field[y][x].open()
 
     def flag(self, x: int, y: int):
-        self.game.flag(x, y)
         self.field[y][x].flag()
+        self.flags = self.mines - sum([len([1 for i in row if i.is_flagged()]) for row in self.field])
 
     def update_numbers(self):
-        flags = max(min(999, self.game.flags), -99)
+        flags = max(min(999, self.flags), -99)
         for ind, el in enumerate(f'-0{str(flags)[-1]}' if -10 < flags < 0 else str(flags).rjust(3, '0')):
             self.flag_numbers[ind].set_sprite(sprites[f'time{el}'])
         if getInput.timer_event():
@@ -200,91 +234,3 @@ class GameStatus(Enum):
     playing = 0
     win = 1
     loss = 2
-
-
-class Cell:
-    def __init__(self, n):
-        self.n = n
-        self.opened = False
-        self.flagged = False
-
-    def is_flagged(self) -> bool:
-        return self.flagged
-
-    def is_opened(self) -> bool:
-        return self.opened
-
-    def flag(self):
-        if not self.opened:
-            self.flagged = not self.flagged
-
-    def __iadd__(self, other: int):
-        return Cell(self.n + other)
-
-    def __eq__(self, other: int) -> bool:
-        return self.n == other
-
-    def __ne__(self, other: int) -> bool:
-        return self.n != other
-
-    def __repr__(self) -> str:
-        return str(self.n)
-
-    def is_bomb(self) -> bool:
-        return self.n == -1
-
-    def open(self):
-        self.flagged = False
-        self.opened = True
-
-    def change(self, n: int):
-        self.n = n
-
-
-class Minesweeper:
-    def __init__(self, size: tuple[int, int], mines: int):
-        self.mines = mines
-        self.flags = mines
-        self.size = size
-        self.touched = False
-        self.field = [[Cell(0) for i in range(size[0])] for j in range(size[1])]
-
-    def open_cell(self, x, y):
-        if 0 <= x < self.size[0] and 0 <= y < self.size[1]:
-            if not self.field[y][x].is_opened() and not self.field[y][x].is_flagged():
-                self.field[y][x].open()
-
-    def flag(self, x, y):
-        if 0 <= x < self.size[0] and 0 <= y < self.size[1]:
-            if not self.field[y][x].is_opened():
-                self.field[y][x].flag()
-                if self.field[y][x].is_flagged():
-                    self.flags -= 1
-                else:
-                    self.flags += 1
-
-    def create_field(self, coords):
-        ban_coords = []
-        for i in (-1, 0, 1):
-            for j in (-1, 0, 1):
-                ban_coords.append((coords[0] + i, coords[1] + j))
-        samples = [(i, j) for j in range(self.size[1]) for i in range(self.size[0]) if (i, j) not in ban_coords]
-        print('\n'.join([' '.join([str(int(j.is_flagged())) for j in i]) for i in self.field]))
-        print()
-        mine_coords = sample(samples, self.mines)
-        for x, y in mine_coords:
-            self.field[y][x].change(-1)
-            for i in (-1, 0, 1):
-                for j in (-1, 0, 1):
-                    if i != 0 or j != 0:
-                        if 0 <= x + i < self.size[0] and 0 <= y + j < self.size[1]:
-                            if not self.field[y + j][x + i].is_bomb():
-                                self.field[y + j][x + i] += 1
-        self.print_field()
-
-    def checkWin(self):
-        return len([1 for i in range(self.size[0] * self.size[1])
-                    if not self.field[i // self.size[0]][i % self.size[0]].opened]) == self.mines
-
-    def print_field(self):
-        print('\n'.join([' '.join(map(str, i)).replace('-1', '*') for i in self.field]))
