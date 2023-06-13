@@ -2,6 +2,7 @@ from useful import load_images_from_folder
 from mouse_input import MouseInput
 import configparser
 
+# cfg
 config = configparser.ConfigParser()
 config.read("config.ini")
 
