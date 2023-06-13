@@ -1,13 +1,17 @@
 from useful import load_images_from_folder
 from mouse_input import MouseInput
+import configparser
+
+config = configparser.ConfigParser()
+config.read("config.ini")
 
 getInput = MouseInput()
 
-game_map_size = (game_map_width, game_map_height) = (9, 9)
-game_mine_count = 10
+game_map_size = (game_map_width, game_map_height) = (int(config["GAME"]["Width"]), int(config["GAME"]["Height"]))
+game_mine_count = int(config["GAME"]["MinesCount"])
 game_params = (game_map_size, game_mine_count)
 
-display_scale = 2
+display_scale = int(config["DISPLAY"]["DisplayScale"])
 
 
 screen_size = (screen_width, screen_height) = display_scale * (20 + game_map_width * 16), display_scale * (52 + game_map_height * 16 + 10)
