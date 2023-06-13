@@ -89,7 +89,7 @@ class Game:
                         if 0 <= x + i < self.game_size[0] and 0 <= y + j < self.game_size[1]:
                             if not self.field[y + j][x + i].is_bomb():
                                 self.field[y + j][x + i].plus()
-        self.print_field()
+        # self.print_field()
 
     def check_win(self):
         return len([1 for i in range(self.game_size[0] * self.game_size[1])
