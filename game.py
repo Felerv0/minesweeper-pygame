@@ -78,8 +78,8 @@ class Game:
             for j in (-1, 0, 1):
                 ban_coords.append((coords[0] + i, coords[1] + j))
         samples = [(i, j) for j in range(self.game_size[1]) for i in range(self.game_size[0]) if (i, j) not in ban_coords]
-        print('\n'.join([' '.join([str(int(j.is_flagged())) for j in i]) for i in self.field]))
-        print()
+        # print('\n'.join([' '.join([str(int(j.is_flagged())) for j in i]) for i in self.field]))
+        # print()
         mine_coords = sample(samples, self.mines)
         for x, y in mine_coords:
             self.field[y][x].change(-1)
